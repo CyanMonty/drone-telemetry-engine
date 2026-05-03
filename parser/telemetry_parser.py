@@ -165,7 +165,7 @@ def run() -> None:
                     msg_count += 1
                     if msg_count % 100 == 0:
                         logger.info("Parsed %d messages", msg_count)
-                except Exception as exc:  # noqa: BLE001
+                except (KeyError, ValueError, TypeError) as exc:
                     logger.error("Failed to process message: %s", exc)
 
         producer.flush()

@@ -109,7 +109,7 @@ def _poll(consumer: KafkaConsumer) -> dict[str, dict]:
                 did = data.get("drone_id")
                 if did:
                     latest[did] = data
-    except Exception as exc:  # noqa: BLE001
+    except (OSError, RuntimeError) as exc:  # connection/poll errors
         logger.warning("Kafka poll error: %s", exc)
     return latest
 

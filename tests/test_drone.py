@@ -15,6 +15,7 @@ from sim.drone import Drone, DroneConfig, _meters_to_lat, _meters_to_lon
 # ---------------------------------------------------------------------------
 
 def test_meters_to_lat_positive():
+    # 1 degree of latitude ≈ 111,111 m at any longitude
     lat_delta = _meters_to_lat(111_111.0)
     assert abs(lat_delta - 1.0) < 0.001
 

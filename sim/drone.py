@@ -200,9 +200,7 @@ class Drone:
         self.vx = -spd * math.sin(self._orbit_angle) + random.gauss(0, 0.05)
         self.vy = spd * math.cos(self._orbit_angle) + random.gauss(0, 0.05)
         self.vz = (
-            -self._alt_amplitude
-            * self._angular_velocity
-            * math.cos(self._alt_phase)
+            (-self._alt_amplitude * self._angular_velocity * math.cos(self._alt_phase))
             + random.gauss(0, 0.02)
         )
 
