@@ -1,0 +1,10 @@
+# Core runtime
+kafka-python-ng==2.2.3
+streamlit==1.35.0
+plotly==5.22.0
+pandas==2.2.2
+numpy==1.26.4
+
+# Testing
+pytest==8.2.2
+pytest-timeout==2.3.1
