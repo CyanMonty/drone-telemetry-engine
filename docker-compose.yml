@@ -1,0 +1,149 @@
+version: "3.9"
+
+services:
+  kafka:
+    image: bitnami/kafka:3.7
+    ports:
+      - "9094:9094"
+    environment:
+      KAFKA_CFG_NODE_ID: "0"
+      KAFKA_CFG_PROCESS_ROLES: controller,broker
+      KAFKA_CFG_LISTENERS: PLAINTEXT://:9092,CONTROLLER://:9093,EXTERNAL://:9094
+      KAFKA_CFG_ADVERTISED_LISTENERS: PLAINTEXT://kafka:9092,EXTERNAL://localhost:9094
+      KAFKA_CFG_LISTENER_SECURITY_PROTOCOL_MAP: CONTROLLER:PLAINTEXT,PLAINTEXT:PLAINTEXT,EXTERNAL:PLAINTEXT
+      KAFKA_CFG_CONTROLLER_QUORUM_VOTERS: "0@kafka:9093"
+      KAFKA_CFG_CONTROLLER_LISTENER_NAMES: CONTROLLER
+      KAFKA_CFG_AUTO_CREATE_TOPICS_ENABLE: "true"
+    healthcheck:
+      test: ["CMD-SHELL", "/opt/bitnami/kafka/bin/kafka-topics.sh --bootstrap-server localhost:9092 --list"]
+      interval: 10s
+      timeout: 10s
+      retries: 15
+      start_period: 30s
+
+  kafka-ui:
+    image: provectuslabs/kafka-ui:latest
+    ports:
+      - "8080:8080"
+    environment:
+      KAFKA_CLUSTERS_0_NAME: local
+      KAFKA_CLUSTERS_0_BOOTSTRAPSERVERS: kafka:9092
+    depends_on:
+      kafka:
+        condition: service_healthy
+
+  timescaledb:
+    image: timescale/timescaledb:latest-pg16
+    ports:
+      - "5432:5432"
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB:-telemetry}
+      POSTGRES_USER: ${POSTGRES_USER:-telemetry}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-telemetry}
+    volumes:
+      - timescaledb_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-telemetry} -d ${POSTGRES_DB:-telemetry}"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+      start_period: 10s
+
+  grafana:
+    image: grafana/grafana:11.0.0
+    ports:
+      - "3000:3000"
+    environment:
+      GF_SECURITY_ADMIN_USER: ${GRAFANA_USER:-admin}
+      GF_SECURITY_ADMIN_PASSWORD: ${GRAFANA_PASSWORD:-admin}
+      POSTGRES_DB: ${POSTGRES_DB:-telemetry}
+      POSTGRES_USER: ${POSTGRES_USER:-telemetry}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-telemetry}
+    volumes:
+      - ./grafana/provisioning:/etc/grafana/provisioning
+      - grafana_data:/var/lib/grafana
+    depends_on:
+      timescaledb:
+        condition: service_healthy
+
+  px4-sitl-0:
+    image: jonasvautherin/px4-gazebo-headless:latest
+    profiles: [dev]
+    environment:
+      PX4_HOME_LAT: "40.7128"
+      PX4_HOME_LON: "-74.0060"
+      PX4_HOME_ALT: "10"
+    restart: on-failure
+
+  px4-sitl-1:
+    image: jonasvautherin/px4-gazebo-headless:latest
+    profiles: [dev]
+    environment:
+      PX4_HOME_LAT: "40.7138"
+      PX4_HOME_LON: "-74.0050"
+      PX4_HOME_ALT: "10"
+    restart: on-failure
+
+  px4-sitl-2:
+    image: jonasvautherin/px4-gazebo-headless:latest
+    profiles: [dev]
+    environment:
+      PX4_HOME_LAT: "40.7118"
+      PX4_HOME_LON: "-74.0070"
+      PX4_HOME_ALT: "10"
+    restart: on-failure
+
+  px4-sitl-3:
+    image: jonasvautherin/px4-gazebo-headless:latest
+    profiles: [dev]
+    environment:
+      PX4_HOME_LAT: "40.7148"
+      PX4_HOME_LON: "-74.0080"
+      PX4_HOME_ALT: "10"
+    restart: on-failure
+
+  px4-sitl-4:
+    image: jonasvautherin/px4-gazebo-headless:latest
+    profiles: [dev]
+    environment:
+      PX4_HOME_LAT: "40.7108"
+      PX4_HOME_LON: "-74.0040"
+      PX4_HOME_ALT: "10"
+    restart: on-failure
+
+  simulator:
+    build: ./simulator
+    restart: on-failure
+    environment:
+      KAFKA_BOOTSTRAP_SERVERS: kafka:9092
+      KAFKA_TOPIC: ${KAFKA_TOPIC:-drone-telemetry}
+      RUN_MODE: ${RUN_MODE:-scale}
+      # dev mode
+      PX4_ADDRESSES: ${PX4_ADDRESSES:-udp://px4-sitl-0:14540}
+      TELEMETRY_RATE_HZ: ${TELEMETRY_RATE_HZ:-2}
+      # scale mode
+      NUM_DRONES: ${NUM_DRONES:-100}
+    depends_on:
+      kafka:
+        condition: service_healthy
+
+  consumer:
+    build: ./consumer
+    restart: on-failure
+    environment:
+      KAFKA_BOOTSTRAP_SERVERS: kafka:9092
+      KAFKA_TOPIC: ${KAFKA_TOPIC:-drone-telemetry}
+      KAFKA_GROUP_ID: ${KAFKA_GROUP_ID:-telemetry-consumer}
+      POSTGRES_HOST: timescaledb
+      POSTGRES_DB: ${POSTGRES_DB:-telemetry}
+      POSTGRES_USER: ${POSTGRES_USER:-telemetry}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-telemetry}
+    depends_on:
+      kafka:
+        condition: service_healthy
+      timescaledb:
+        condition: service_healthy
+
+volumes:
+  timescaledb_data:
+  grafana_data:
