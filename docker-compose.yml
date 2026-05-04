@@ -66,49 +66,21 @@ services:
       timescaledb:
         condition: service_healthy
 
-  px4-sitl-0:
-    image: jonasvautherin/px4-gazebo-headless:latest
+  px4-swarm:
+    build: ./docker/px4-swarm
     profiles: [dev]
     environment:
+      NUM_DRONES: ${PX4_NUM_DRONES:-3}
+      VEHICLE: ${PX4_VEHICLE:-gz_x500}
+      WORLD: ${PX4_WORLD:-default}
+      DRONE_SPACING: ${PX4_DRONE_SPACING:-2}
       PX4_HOME_LAT: "40.7128"
       PX4_HOME_LON: "-74.0060"
       PX4_HOME_ALT: "10"
-    restart: on-failure
-
-  px4-sitl-1:
-    image: jonasvautherin/px4-gazebo-headless:latest
-    profiles: [dev]
-    environment:
-      PX4_HOME_LAT: "40.7138"
-      PX4_HOME_LON: "-74.0050"
-      PX4_HOME_ALT: "10"
-    restart: on-failure
-
-  px4-sitl-2:
-    image: jonasvautherin/px4-gazebo-headless:latest
-    profiles: [dev]
-    environment:
-      PX4_HOME_LAT: "40.7118"
-      PX4_HOME_LON: "-74.0070"
-      PX4_HOME_ALT: "10"
-    restart: on-failure
-
-  px4-sitl-3:
-    image: jonasvautherin/px4-gazebo-headless:latest
-    profiles: [dev]
-    environment:
-      PX4_HOME_LAT: "40.7148"
-      PX4_HOME_LON: "-74.0080"
-      PX4_HOME_ALT: "10"
-    restart: on-failure
-
-  px4-sitl-4:
-    image: jonasvautherin/px4-gazebo-headless:latest
-    profiles: [dev]
-    environment:
-      PX4_HOME_LAT: "40.7108"
-      PX4_HOME_LON: "-74.0040"
-      PX4_HOME_ALT: "10"
+    # Expose MAVSDK ports for all 5 possible instances.
+    # Only the ports for NUM_DRONES instances will actually be bound by PX4.
+    ports:
+      - "14540-14544:14540-14544/udp"
     restart: on-failure
 
   simulator:
@@ -118,8 +90,8 @@ services:
       KAFKA_BOOTSTRAP_SERVERS: kafka:9092
       KAFKA_TOPIC: ${KAFKA_TOPIC:-drone-telemetry}
       RUN_MODE: ${RUN_MODE:-scale}
-      # dev mode
-      PX4_ADDRESSES: ${PX4_ADDRESSES:-udp://px4-sitl-0:14540}
+      # dev mode — one address per PX4 instance (port = 14540 + instance)
+      PX4_ADDRESSES: ${PX4_ADDRESSES:-udp://px4-swarm:14540,udp://px4-swarm:14541,udp://px4-swarm:14542}
       TELEMETRY_RATE_HZ: ${TELEMETRY_RATE_HZ:-2}
       # scale mode
       NUM_DRONES: ${NUM_DRONES:-100}
