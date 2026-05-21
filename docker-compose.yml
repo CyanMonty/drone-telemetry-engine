@@ -93,6 +93,9 @@ services:
       # dev mode — one address per PX4 instance (port = 14540 + instance)
       PX4_ADDRESSES: ${PX4_ADDRESSES:-udp://px4-swarm:14540,udp://px4-swarm:14541,udp://px4-swarm:14542}
       TELEMETRY_RATE_HZ: ${TELEMETRY_RATE_HZ:-2}
+      # Fault injection: set FAULT_RATE=0.05 to inject faults into ~5% of records.
+      # 0.0 (default) disables fault injection entirely.
+      FAULT_RATE: ${FAULT_RATE:-0.0}
       # scale mode
       NUM_DRONES: ${NUM_DRONES:-100}
     depends_on:

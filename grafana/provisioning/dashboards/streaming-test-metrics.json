@@ -1,0 +1,196 @@
+{
+  "annotations": { "list": [] },
+  "editable": true,
+  "graphTooltip": 1,
+  "links": [],
+  "panels": [
+    {
+      "datasource": { "type": "postgres", "uid": "timescaledb-ds" },
+      "fieldConfig": {
+        "defaults": {
+          "color": { "mode": "palette-classic" },
+          "custom": { "lineWidth": 2, "fillOpacity": 10 },
+          "unit": "reqps"
+        },
+        "overrides": []
+      },
+      "gridPos": { "h": 8, "w": 12, "x": 0, "y": 0 },
+      "id": 1,
+      "options": {
+        "legend": { "displayMode": "list", "placement": "bottom" },
+        "tooltip": { "mode": "multi" }
+      },
+      "targets": [
+        {
+          "datasource": { "type": "postgres", "uid": "timescaledb-ds" },
+          "format": "time_series",
+          "rawSql": "SELECT time, test_name AS metric, throughput_msg_s AS \"Throughput (msg/s)\" FROM streaming_metrics WHERE $__timeFilter(time) ORDER BY time",
+          "refId": "A"
+        }
+      ],
+      "title": "Throughput (msg/s)",
+      "type": "timeseries"
+    },
+    {
+      "datasource": { "type": "postgres", "uid": "timescaledb-ds" },
+      "fieldConfig": {
+        "defaults": {
+          "color": { "mode": "palette-classic" },
+          "custom": { "lineWidth": 2, "fillOpacity": 10 },
+          "unit": "ms"
+        },
+        "overrides": [
+          {
+            "matcher": { "id": "byName", "options": "P95 (ms)" },
+            "properties": [{ "id": "color", "value": { "fixedColor": "orange", "mode": "fixed" } }]
+          }
+        ]
+      },
+      "gridPos": { "h": 8, "w": 12, "x": 12, "y": 0 },
+      "id": 2,
+      "options": {
+        "legend": { "displayMode": "list", "placement": "bottom" },
+        "tooltip": { "mode": "multi" }
+      },
+      "targets": [
+        {
+          "datasource": { "type": "postgres", "uid": "timescaledb-ds" },
+          "format": "time_series",
+          "rawSql": "SELECT time, latency_p50_ms AS \"P50 (ms)\" FROM streaming_metrics WHERE $__timeFilter(time) ORDER BY time",
+          "refId": "A"
+        },
+        {
+          "datasource": { "type": "postgres", "uid": "timescaledb-ds" },
+          "format": "time_series",
+          "rawSql": "SELECT time, latency_p95_ms AS \"P95 (ms)\" FROM streaming_metrics WHERE $__timeFilter(time) ORDER BY time",
+          "refId": "B"
+        }
+      ],
+      "title": "End-to-end Latency",
+      "type": "timeseries"
+    },
+    {
+      "datasource": { "type": "postgres", "uid": "timescaledb-ds" },
+      "fieldConfig": {
+        "defaults": {
+          "color": { "mode": "fixed", "fixedColor": "red" },
+          "custom": { "lineWidth": 2, "fillOpacity": 10 },
+          "unit": "percentunit",
+          "min": 0,
+          "max": 1
+        },
+        "overrides": []
+      },
+      "gridPos": { "h": 8, "w": 12, "x": 0, "y": 8 },
+      "id": 3,
+      "options": {
+        "legend": { "displayMode": "list", "placement": "bottom" },
+        "tooltip": { "mode": "multi" }
+      },
+      "targets": [
+        {
+          "datasource": { "type": "postgres", "uid": "timescaledb-ds" },
+          "format": "time_series",
+          "rawSql": "SELECT time, error_rate AS \"Error Rate\" FROM streaming_metrics WHERE $__timeFilter(time) ORDER BY time",
+          "refId": "A"
+        }
+      ],
+      "title": "Error Rate",
+      "type": "timeseries"
+    },
+    {
+      "datasource": { "type": "postgres", "uid": "timescaledb-ds" },
+      "fieldConfig": {
+        "defaults": {},
+        "overrides": [
+          { "matcher": { "id": "byName", "options": "throughput_msg_s" }, "properties": [{ "id": "displayName", "value": "Throughput (msg/s)" }, { "id": "custom.width", "value": 130 }] },
+          { "matcher": { "id": "byName", "options": "latency_p50_ms" },   "properties": [{ "id": "displayName", "value": "P50 (ms)" },           { "id": "custom.width", "value": 90 }] },
+          { "matcher": { "id": "byName", "options": "latency_p95_ms" },   "properties": [{ "id": "displayName", "value": "P95 (ms)" },           { "id": "custom.width", "value": 90 }] },
+          { "matcher": { "id": "byName", "options": "error_rate" },       "properties": [{ "id": "displayName", "value": "Error Rate" },         { "id": "unit", "value": "percentunit" }] },
+          { "matcher": { "id": "byName", "options": "message_count" },    "properties": [{ "id": "displayName", "value": "Messages" },           { "id": "custom.width", "value": 80 }] }
+        ]
+      },
+      "gridPos": { "h": 8, "w": 12, "x": 12, "y": 8 },
+      "id": 4,
+      "options": {
+        "sortBy": [{ "desc": true, "displayName": "time" }]
+      },
+      "targets": [
+        {
+          "datasource": { "type": "postgres", "uid": "timescaledb-ds" },
+          "format": "table",
+          "rawSql": "SELECT time, test_name, message_count, throughput_msg_s, latency_p50_ms, latency_p95_ms, error_rate FROM streaming_metrics WHERE $__timeFilter(time) ORDER BY time DESC LIMIT 25",
+          "refId": "A"
+        }
+      ],
+      "title": "Recent Test Runs",
+      "type": "table"
+    }
+  ],
+    {
+      "datasource": { "type": "postgres", "uid": "timescaledb-ds" },
+      "fieldConfig": {
+        "defaults": {
+          "color": { "mode": "fixed", "fixedColor": "purple" },
+          "custom": { "lineWidth": 2, "fillOpacity": 10 },
+          "unit": "percentunit",
+          "min": 0,
+          "max": 1
+        },
+        "overrides": []
+      },
+      "gridPos": { "h": 8, "w": 12, "x": 0, "y": 16 },
+      "id": 5,
+      "options": {
+        "legend": { "displayMode": "list", "placement": "bottom" },
+        "tooltip": { "mode": "multi" }
+      },
+      "targets": [
+        {
+          "datasource": { "type": "postgres", "uid": "timescaledb-ds" },
+          "format": "time_series",
+          "rawSql": "SELECT time, error_rate AS \"Fault Injection Rate\" FROM streaming_metrics WHERE test_name LIKE 'fault_injection%' AND $__timeFilter(time) ORDER BY time",
+          "refId": "A"
+        }
+      ],
+      "title": "Fault Injection Rate (test runs)",
+      "type": "timeseries"
+    },
+    {
+      "datasource": { "type": "postgres", "uid": "timescaledb-ds" },
+      "fieldConfig": {
+        "defaults": {},
+        "overrides": [
+          { "matcher": { "id": "byName", "options": "error_rate" },    "properties": [{ "id": "displayName", "value": "Fault Rate" },    { "id": "unit", "value": "percentunit" }] },
+          { "matcher": { "id": "byName", "options": "message_count" }, "properties": [{ "id": "displayName", "value": "Messages" }] },
+          { "matcher": { "id": "byName", "options": "notes" },         "properties": [{ "id": "displayName", "value": "Breakdown" },    { "id": "custom.width", "value": 350 }] }
+        ]
+      },
+      "gridPos": { "h": 8, "w": 12, "x": 12, "y": 16 },
+      "id": 6,
+      "options": {
+        "sortBy": [{ "desc": true, "displayName": "time" }]
+      },
+      "targets": [
+        {
+          "datasource": { "type": "postgres", "uid": "timescaledb-ds" },
+          "format": "table",
+          "rawSql": "SELECT time, test_name, message_count, error_rate, notes FROM streaming_metrics WHERE test_name LIKE 'fault_injection%' AND $__timeFilter(time) ORDER BY time DESC LIMIT 25",
+          "refId": "A"
+        }
+      ],
+      "title": "Fault Injection Test Runs",
+      "type": "table"
+    }
+  ],
+  "refresh": "30s",
+  "schemaVersion": 39,
+  "tags": ["streaming", "tests", "kafka"],
+  "templating": { "list": [] },
+  "time": { "from": "now-7d", "to": "now" },
+  "timepicker": {},
+  "timezone": "browser",
+  "title": "Streaming Test Metrics",
+  "uid": "streaming-test-metrics",
+  "version": 1
+}
