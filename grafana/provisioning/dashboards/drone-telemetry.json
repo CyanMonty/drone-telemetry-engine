@@ -1,0 +1,641 @@
+{
+  "annotations": { "list": [] },
+  "editable": true,
+  "graphTooltip": 1,
+  "links": [],
+  "panels": [
+    {
+      "datasource": { "type": "postgres", "uid": "timescaledb-ds" },
+      "fieldConfig": {
+        "defaults": {
+          "color": { "mode": "thresholds" },
+          "thresholds": { "mode": "absolute", "steps": [{ "color": "green", "value": null }] }
+        },
+        "overrides": []
+      },
+      "gridPos": { "h": 4, "w": 3, "x": 0, "y": 0 },
+      "id": 1,
+      "options": { "colorMode": "background", "graphMode": "none", "justifyMode": "center", "orientation": "auto", "reduceOptions": { "calcs": ["lastNotNull"], "fields": "", "values": false }, "textMode": "auto" },
+      "targets": [{ "datasource": { "type": "postgres", "uid": "timescaledb-ds" }, "format": "table", "rawSql": "SELECT COUNT(DISTINCT drone_id) AS \"Active Drones\" FROM drone_telemetry WHERE $__timeFilter(time)", "refId": "A" }],
+      "title": "Active Drones",
+      "type": "stat"
+    },
+    {
+      "datasource": { "type": "postgres", "uid": "timescaledb-ds" },
+      "fieldConfig": {
+        "defaults": {
+          "color": { "mode": "thresholds" },
+          "thresholds": { "mode": "absolute", "steps": [{ "color": "green", "value": null }, { "color": "red", "value": 1 }] }
+        },
+        "overrides": []
+      },
+      "gridPos": { "h": 4, "w": 3, "x": 3, "y": 0 },
+      "id": 2,
+      "options": { "colorMode": "background", "graphMode": "none", "justifyMode": "center", "orientation": "auto", "reduceOptions": { "calcs": ["lastNotNull"], "fields": "", "values": false }, "textMode": "auto" },
+      "targets": [{ "datasource": { "type": "postgres", "uid": "timescaledb-ds" }, "format": "table", "rawSql": "SELECT COUNT(*) AS \"Critical\" FROM (SELECT DISTINCT ON (drone_id) drone_id, payload->>'status' AS status FROM drone_telemetry WHERE $__timeFilter(time) ORDER BY drone_id, time DESC) t WHERE status = 'CRITICAL'", "refId": "A" }],
+      "title": "Critical Drones",
+      "type": "stat"
+    },
+    {
+      "datasource": { "type": "postgres", "uid": "timescaledb-ds" },
+      "fieldConfig": {
+        "defaults": {
+          "color": { "mode": "thresholds" },
+          "thresholds": { "mode": "absolute", "steps": [{ "color": "green", "value": null }, { "color": "orange", "value": 1 }] }
+        },
+        "overrides": []
+      },
+      "gridPos": { "h": 4, "w": 3, "x": 6, "y": 0 },
+      "id": 3,
+      "options": { "colorMode": "background", "graphMode": "none", "justifyMode": "center", "orientation": "auto", "reduceOptions": { "calcs": ["lastNotNull"], "fields": "", "values": false }, "textMode": "auto" },
+      "targets": [{ "datasource": { "type": "postgres", "uid": "timescaledb-ds" }, "format": "table", "rawSql": "SELECT COUNT(*) AS \"RTL/Emergency\" FROM (SELECT DISTINCT ON (drone_id) drone_id, payload->>'flight_mode' AS flight_mode FROM drone_telemetry WHERE $__timeFilter(time) ORDER BY drone_id, time DESC) t WHERE flight_mode IN ('RTL','EMERGENCY')", "refId": "A" }],
+      "title": "RTL / Emergency",
+      "type": "stat"
+    },
+    {
+      "datasource": { "type": "postgres", "uid": "timescaledb-ds" },
+      "fieldConfig": {
+        "defaults": {
+          "color": { "mode": "thresholds" },
+          "thresholds": { "mode": "absolute", "steps": [{ "color": "green", "value": null }, { "color": "red", "value": 1 }] }
+        },
+        "overrides": []
+      },
+      "gridPos": { "h": 4, "w": 3, "x": 9, "y": 0 },
+      "id": 4,
+      "options": { "colorMode": "background", "graphMode": "none", "justifyMode": "center", "orientation": "auto", "reduceOptions": { "calcs": ["lastNotNull"], "fields": "", "values": false }, "textMode": "auto" },
+      "targets": [{ "datasource": { "type": "postgres", "uid": "timescaledb-ds" }, "format": "table", "rawSql": "SELECT COUNT(*) AS \"Motor Faults\" FROM (SELECT DISTINCT ON (drone_id) drone_id, payload->>'motor_fault' AS mf FROM drone_telemetry WHERE $__timeFilter(time) ORDER BY drone_id, time DESC) t WHERE mf IS NOT NULL", "refId": "A" }],
+      "title": "Motor Faults",
+      "type": "stat"
+    },
+    {
+      "datasource": { "type": "postgres", "uid": "timescaledb-ds" },
+      "fieldConfig": {
+        "defaults": {
+          "color": { "mode": "thresholds" },
+          "thresholds": { "mode": "absolute", "steps": [{ "color": "red", "value": null }, { "color": "yellow", "value": 20 }, { "color": "green", "value": 50 }] },
+          "unit": "percent",
+          "min": 0,
+          "max": 100
+        },
+        "overrides": []
+      },
+      "gridPos": { "h": 4, "w": 3, "x": 12, "y": 0 },
+      "id": 5,
+      "options": { "colorMode": "background", "graphMode": "area", "justifyMode": "center", "orientation": "auto", "reduceOptions": { "calcs": ["lastNotNull"], "fields": "", "values": false }, "textMode": "auto" },
+      "targets": [{ "datasource": { "type": "postgres", "uid": "timescaledb-ds" }, "format": "table", "rawSql": "SELECT AVG(battery_level) AS \"Avg Battery\" FROM (SELECT DISTINCT ON (drone_id) battery_level FROM drone_telemetry WHERE $__timeFilter(time) ORDER BY drone_id, time DESC) t", "refId": "A" }],
+      "title": "Fleet Avg Battery",
+      "type": "stat"
+    },
+    {
+      "datasource": { "type": "postgres", "uid": "timescaledb-ds" },
+      "fieldConfig": {
+        "defaults": {
+          "color": { "mode": "thresholds" },
+          "thresholds": { "mode": "absolute", "steps": [{ "color": "blue", "value": null }] },
+          "unit": "lengthm"
+        },
+        "overrides": []
+      },
+      "gridPos": { "h": 4, "w": 3, "x": 15, "y": 0 },
+      "id": 6,
+      "options": { "colorMode": "background", "graphMode": "none", "justifyMode": "center", "orientation": "auto", "reduceOptions": { "calcs": ["lastNotNull"], "fields": "", "values": false }, "textMode": "auto" },
+      "targets": [{ "datasource": { "type": "postgres", "uid": "timescaledb-ds" }, "format": "table", "rawSql": "SELECT AVG(alt) AS \"Avg Altitude\" FROM (SELECT DISTINCT ON (drone_id) alt FROM drone_telemetry WHERE $__timeFilter(time) ORDER BY drone_id, time DESC) t", "refId": "A" }],
+      "title": "Fleet Avg Altitude",
+      "type": "stat"
+    },
+    {
+      "datasource": { "type": "postgres", "uid": "timescaledb-ds" },
+      "fieldConfig": {
+        "defaults": {
+          "color": { "mode": "thresholds" },
+          "thresholds": { "mode": "absolute", "steps": [{ "color": "green", "value": null }, { "color": "red", "value": 1 }] }
+        },
+        "overrides": []
+      },
+      "gridPos": { "h": 4, "w": 3, "x": 18, "y": 0 },
+      "id": 7,
+      "options": { "colorMode": "background", "graphMode": "none", "justifyMode": "center", "orientation": "auto", "reduceOptions": { "calcs": ["lastNotNull"], "fields": "", "values": false }, "textMode": "auto" },
+      "targets": [{ "datasource": { "type": "postgres", "uid": "timescaledb-ds" }, "format": "table", "rawSql": "SELECT COUNT(*) AS \"Low Signal\" FROM (SELECT DISTINCT ON (drone_id) (payload->>'signal_strength')::float AS sig FROM drone_telemetry WHERE $__timeFilter(time) ORDER BY drone_id, time DESC) t WHERE sig < 30", "refId": "A" }],
+      "title": "Low Signal (<30%)",
+      "type": "stat"
+    },
+    {
+      "datasource": { "type": "postgres", "uid": "timescaledb-ds" },
+      "fieldConfig": {
+        "defaults": {
+          "color": { "mode": "thresholds" },
+          "thresholds": { "mode": "absolute", "steps": [{ "color": "green", "value": null }, { "color": "yellow", "value": 8 }, { "color": "red", "value": 12 }] },
+          "unit": "velocityms"
+        },
+        "overrides": []
+      },
+      "gridPos": { "h": 4, "w": 3, "x": 21, "y": 0 },
+      "id": 8,
+      "options": { "colorMode": "background", "graphMode": "area", "justifyMode": "center", "orientation": "auto", "reduceOptions": { "calcs": ["lastNotNull"], "fields": "", "values": false }, "textMode": "auto" },
+      "targets": [{ "datasource": { "type": "postgres", "uid": "timescaledb-ds" }, "format": "table", "rawSql": "SELECT AVG((payload->>'wind_speed')::float) AS \"Avg Wind\" FROM drone_telemetry WHERE $__timeFilter(time) AND payload->>'wind_speed' IS NOT NULL", "refId": "A" }],
+      "title": "Avg Wind Speed",
+      "type": "stat"
+    },
+
+    {
+      "datasource": { "type": "postgres", "uid": "timescaledb-ds" },
+      "fieldConfig": { "defaults": {}, "overrides": [] },
+      "gridPos": { "h": 12, "w": 24, "x": 0, "y": 4 },
+      "id": 9,
+      "options": {
+        "basemap": { "config": {}, "name": "Basemap", "type": "default" },
+        "controls": { "mouseWheelZoom": true, "showAttribution": true, "showDebug": false, "showScale": false, "showZoom": true },
+        "layers": [
+          {
+            "config": {
+              "fillOpacity": 0.8,
+              "shape": "circle",
+              "showLegend": true,
+              "size": { "fixed": 8, "max": 14, "min": 4, "mode": "fixed" },
+              "style": {
+                "color": { "field": "battery_level", "mode": "field" },
+                "opacity": 0.8,
+                "symbol": { "fixed": "img/icons/marker/circle.svg", "mode": "fixed" },
+                "text": { "field": "drone_id", "mode": "field" },
+                "textConfig": { "fontSize": 10, "offsetX": 0, "offsetY": -12, "textAlign": "center", "textBaseline": "bottom" }
+              }
+            },
+            "location": { "latitude": "latitude", "longitude": "longitude", "mode": "coords" },
+            "name": "Drone Positions",
+            "tooltip": true,
+            "type": "markers"
+          }
+        ],
+        "tooltip": { "mode": "details" },
+        "view": { "allLayers": true, "id": "coords", "lat": 40.7128, "lon": -74.006, "zoom": 11 }
+      },
+      "targets": [{ "datasource": { "type": "postgres", "uid": "timescaledb-ds" }, "format": "table", "rawSql": "SELECT DISTINCT ON (drone_id) drone_id, lat AS latitude, lon AS longitude, battery_level, payload->>'flight_mode' AS flight_mode, payload->>'status' AS status FROM drone_telemetry WHERE $__timeFilter(time) ORDER BY drone_id, time DESC", "refId": "A" }],
+      "title": "Fleet Position",
+      "type": "geomap"
+    },
+
+    {
+      "datasource": { "type": "postgres", "uid": "timescaledb-ds" },
+      "fieldConfig": {
+        "defaults": {
+          "color": { "mode": "thresholds" },
+          "thresholds": { "mode": "absolute", "steps": [{ "color": "red", "value": null }, { "color": "yellow", "value": 20 }, { "color": "green", "value": 50 }] },
+          "unit": "percent",
+          "min": 0,
+          "max": 100
+        },
+        "overrides": []
+      },
+      "gridPos": { "h": 10, "w": 14, "x": 0, "y": 16 },
+      "id": 10,
+      "options": {
+        "displayMode": "lcd",
+        "minVizHeight": 10,
+        "minVizWidth": 0,
+        "orientation": "horizontal",
+        "reduceOptions": { "calcs": ["lastNotNull"], "fields": "/^battery_level$/", "values": true },
+        "showUnfilled": true,
+        "text": {}
+      },
+      "targets": [{ "datasource": { "type": "postgres", "uid": "timescaledb-ds" }, "format": "table", "rawSql": "SELECT DISTINCT ON (drone_id) drone_id, battery_level FROM drone_telemetry WHERE $__timeFilter(time) ORDER BY drone_id, time DESC", "refId": "A" }],
+      "title": "Battery per Drone",
+      "type": "bargauge"
+    },
+    {
+      "datasource": { "type": "postgres", "uid": "timescaledb-ds" },
+      "fieldConfig": { "defaults": {}, "overrides": [] },
+      "gridPos": { "h": 10, "w": 5, "x": 14, "y": 16 },
+      "id": 11,
+      "options": {
+        "displayLabels": ["name", "percent"],
+        "legend": { "displayMode": "list", "placement": "bottom", "showLegend": true },
+        "pieType": "donut",
+        "tooltip": { "mode": "single", "sort": "none" }
+      },
+      "targets": [{ "datasource": { "type": "postgres", "uid": "timescaledb-ds" }, "format": "table", "rawSql": "SELECT COALESCE(payload->>'flight_mode','UNKNOWN') AS \"Mode\", COUNT(*) AS \"Drones\" FROM (SELECT DISTINCT ON (drone_id) payload FROM drone_telemetry WHERE $__timeFilter(time) ORDER BY drone_id, time DESC) t GROUP BY 1 ORDER BY 2 DESC", "refId": "A" }],
+      "title": "Flight Modes",
+      "type": "piechart"
+    },
+    {
+      "datasource": { "type": "postgres", "uid": "timescaledb-ds" },
+      "fieldConfig": { "defaults": {}, "overrides": [] },
+      "gridPos": { "h": 10, "w": 5, "x": 19, "y": 16 },
+      "id": 12,
+      "options": {
+        "displayLabels": ["name", "percent"],
+        "legend": { "displayMode": "list", "placement": "bottom", "showLegend": true },
+        "pieType": "donut",
+        "tooltip": { "mode": "single", "sort": "none" }
+      },
+      "targets": [{ "datasource": { "type": "postgres", "uid": "timescaledb-ds" }, "format": "table", "rawSql": "SELECT COALESCE(payload->>'status','UNKNOWN') AS \"Status\", COUNT(*) AS \"Drones\" FROM (SELECT DISTINCT ON (drone_id) payload FROM drone_telemetry WHERE $__timeFilter(time) ORDER BY drone_id, time DESC) t GROUP BY 1 ORDER BY 2 DESC", "refId": "A" }],
+      "title": "Fleet Health",
+      "type": "piechart"
+    },
+
+    {
+      "datasource": { "type": "postgres", "uid": "timescaledb-ds" },
+      "fieldConfig": {
+        "defaults": { "custom": { "align": "auto", "cellOptions": { "type": "auto" }, "inspect": false } },
+        "overrides": [
+          { "matcher": { "id": "byName", "options": "Battery %" }, "properties": [
+            { "id": "unit", "value": "percent" },
+            { "id": "custom.cellOptions", "value": { "type": "color-background", "mode": "gradient" } },
+            { "id": "thresholds", "value": { "mode": "absolute", "steps": [{ "color": "red", "value": null }, { "color": "yellow", "value": 20 }, { "color": "green", "value": 50 }] } },
+            { "id": "custom.width", "value": 100 }
+          ]},
+          { "matcher": { "id": "byName", "options": "Status" }, "properties": [
+            { "id": "custom.cellOptions", "value": { "type": "color-background", "mode": "basic" } },
+            { "id": "mappings", "value": [{ "type": "value", "options": { "HEALTHY": { "color": "green", "index": 0 }, "WARNING": { "color": "yellow", "index": 1 }, "CRITICAL": { "color": "red", "index": 2 } } }] },
+            { "id": "custom.width", "value": 90 }
+          ]},
+          { "matcher": { "id": "byName", "options": "Mode" }, "properties": [
+            { "id": "custom.cellOptions", "value": { "type": "color-background", "mode": "basic" } },
+            { "id": "mappings", "value": [{ "type": "value", "options": { "MISSION": { "color": "green", "index": 0 }, "RTL": { "color": "yellow", "index": 1 }, "EMERGENCY": { "color": "red", "index": 2 } } }] },
+            { "id": "custom.width", "value": 100 }
+          ]},
+          { "matcher": { "id": "byName", "options": "Signal %" }, "properties": [
+            { "id": "unit", "value": "percent" },
+            { "id": "thresholds", "value": { "mode": "absolute", "steps": [{ "color": "red", "value": null }, { "color": "yellow", "value": 30 }, { "color": "green", "value": 70 }] } },
+            { "id": "custom.width", "value": 90 }
+          ]},
+          { "matcher": { "id": "byName", "options": "GPS Sats" }, "properties": [
+            { "id": "thresholds", "value": { "mode": "absolute", "steps": [{ "color": "red", "value": null }, { "color": "yellow", "value": 4 }, { "color": "green", "value": 6 }] } },
+            { "id": "custom.width", "value": 80 }
+          ]},
+          { "matcher": { "id": "byName", "options": "Motor" }, "properties": [
+            { "id": "custom.cellOptions", "value": { "type": "color-background", "mode": "basic" } },
+            { "id": "mappings", "value": [
+              { "type": "value", "options": { "OK": { "color": "green", "index": 0 } } },
+              { "type": "regex", "options": { "pattern": "^Motor.*", "result": { "color": "red", "index": 1 } } }
+            ]},
+            { "id": "custom.width", "value": 90 }
+          ]},
+          { "matcher": { "id": "byName", "options": "Last Seen" }, "properties": [{ "id": "unit", "value": "time:YYYY-MM-DD HH:mm:ss" }, { "id": "custom.width", "value": 160 }] },
+          { "matcher": { "id": "byName", "options": "Alt (m)" }, "properties": [{ "id": "unit", "value": "lengthm" }, { "id": "custom.width", "value": 80 }] },
+          { "matcher": { "id": "byName", "options": "Speed m/s" }, "properties": [{ "id": "unit", "value": "velocityms" }, { "id": "custom.width", "value": 90 }] }
+        ]
+      },
+      "gridPos": { "h": 10, "w": 24, "x": 0, "y": 26 },
+      "id": 13,
+      "options": {
+        "cellHeight": "sm",
+        "footer": { "countRows": false, "fields": "", "reducer": ["sum"], "show": false },
+        "showHeader": true,
+        "sortBy": [{ "desc": false, "displayName": "Drone" }]
+      },
+      "targets": [{ "datasource": { "type": "postgres", "uid": "timescaledb-ds" }, "format": "table", "rawSql": "SELECT DISTINCT ON (drone_id) drone_id AS \"Drone\", time AS \"Last Seen\", ROUND(battery_level::numeric,1) AS \"Battery %\", ROUND(alt::numeric,1) AS \"Alt (m)\", ROUND(speed::numeric,1) AS \"Speed m/s\", ROUND(heading::numeric,0) AS \"Hdg\", COALESCE(payload->>'flight_mode','?') AS \"Mode\", COALESCE(payload->>'status','?') AS \"Status\", ROUND((payload->>'signal_strength')::numeric,1) AS \"Signal %\", (payload->>'gps_satellites')::int AS \"GPS Sats\", CASE WHEN payload->>'motor_fault' IS NULL THEN 'OK' ELSE 'Motor '||(payload->>'motor_fault') END AS \"Motor\" FROM drone_telemetry WHERE $__timeFilter(time) AND drone_id IN ($drone_id) ORDER BY drone_id, time DESC", "refId": "A" }],
+      "title": "Drone Status Table",
+      "type": "table"
+    },
+
+    {
+      "datasource": { "type": "postgres", "uid": "timescaledb-ds" },
+      "fieldConfig": {
+        "defaults": { "color": { "mode": "palette-classic" }, "custom": { "lineWidth": 2, "fillOpacity": 5 }, "unit": "percent", "min": 0, "max": 100 },
+        "overrides": []
+      },
+      "gridPos": { "h": 8, "w": 12, "x": 0, "y": 36 },
+      "id": 14,
+      "options": { "legend": { "displayMode": "list", "placement": "bottom" }, "tooltip": { "mode": "multi", "sort": "none" } },
+      "targets": [{ "datasource": { "type": "postgres", "uid": "timescaledb-ds" }, "format": "time_series", "rawSql": "SELECT $__timeGroupAlias(time,'5s'), drone_id AS metric, AVG(battery_level) AS battery_level FROM drone_telemetry WHERE $__timeFilter(time) AND drone_id IN ($drone_id) GROUP BY 1, 2 ORDER BY 1", "refId": "A" }],
+      "title": "Battery Level",
+      "type": "timeseries"
+    },
+    {
+      "datasource": { "type": "postgres", "uid": "timescaledb-ds" },
+      "fieldConfig": {
+        "defaults": { "color": { "mode": "palette-classic" }, "custom": { "lineWidth": 2, "fillOpacity": 5 }, "unit": "lengthm" },
+        "overrides": []
+      },
+      "gridPos": { "h": 8, "w": 12, "x": 12, "y": 36 },
+      "id": 15,
+      "options": { "legend": { "displayMode": "list", "placement": "bottom" }, "tooltip": { "mode": "multi", "sort": "none" } },
+      "targets": [{ "datasource": { "type": "postgres", "uid": "timescaledb-ds" }, "format": "time_series", "rawSql": "SELECT $__timeGroupAlias(time,'5s'), drone_id AS metric, AVG(alt) AS altitude FROM drone_telemetry WHERE $__timeFilter(time) AND drone_id IN ($drone_id) GROUP BY 1, 2 ORDER BY 1", "refId": "A" }],
+      "title": "Altitude",
+      "type": "timeseries"
+    },
+
+    {
+      "datasource": { "type": "postgres", "uid": "timescaledb-ds" },
+      "fieldConfig": {
+        "defaults": { "color": { "mode": "palette-classic" }, "custom": { "lineWidth": 2, "fillOpacity": 5 }, "unit": "velocityms" },
+        "overrides": []
+      },
+      "gridPos": { "h": 8, "w": 12, "x": 0, "y": 44 },
+      "id": 16,
+      "options": { "legend": { "displayMode": "list", "placement": "bottom" }, "tooltip": { "mode": "multi", "sort": "none" } },
+      "targets": [{ "datasource": { "type": "postgres", "uid": "timescaledb-ds" }, "format": "time_series", "rawSql": "SELECT $__timeGroupAlias(time,'5s'), drone_id AS metric, AVG(speed) AS speed FROM drone_telemetry WHERE $__timeFilter(time) AND drone_id IN ($drone_id) GROUP BY 1, 2 ORDER BY 1", "refId": "A" }],
+      "title": "Speed",
+      "type": "timeseries"
+    },
+    {
+      "datasource": { "type": "postgres", "uid": "timescaledb-ds" },
+      "fieldConfig": {
+        "defaults": { "color": { "mode": "palette-classic" }, "custom": { "lineWidth": 2, "fillOpacity": 5 }, "unit": "percent", "min": 0, "max": 100 },
+        "overrides": []
+      },
+      "gridPos": { "h": 8, "w": 12, "x": 12, "y": 44 },
+      "id": 17,
+      "options": { "legend": { "displayMode": "list", "placement": "bottom" }, "tooltip": { "mode": "multi", "sort": "none" } },
+      "targets": [{ "datasource": { "type": "postgres", "uid": "timescaledb-ds" }, "format": "time_series", "rawSql": "SELECT $__timeGroupAlias(time,'5s'), drone_id AS metric, AVG((payload->>'signal_strength')::float) AS signal_strength FROM drone_telemetry WHERE $__timeFilter(time) AND drone_id IN ($drone_id) AND payload->>'signal_strength' IS NOT NULL GROUP BY 1, 2 ORDER BY 1", "refId": "A" }],
+      "title": "Signal Strength",
+      "type": "timeseries"
+    },
+
+    {
+      "datasource": { "type": "postgres", "uid": "timescaledb-ds" },
+      "fieldConfig": {
+        "defaults": { "color": { "mode": "fixed", "fixedColor": "light-blue" }, "custom": { "lineWidth": 2, "fillOpacity": 15 }, "unit": "velocityms", "min": 0 },
+        "overrides": []
+      },
+      "gridPos": { "h": 8, "w": 12, "x": 0, "y": 52 },
+      "id": 18,
+      "options": { "legend": { "displayMode": "list", "placement": "bottom" }, "tooltip": { "mode": "multi", "sort": "none" } },
+      "targets": [{ "datasource": { "type": "postgres", "uid": "timescaledb-ds" }, "format": "time_series", "rawSql": "SELECT $__timeGroupAlias(time,'10s'), 'Fleet Avg' AS metric, AVG((payload->>'wind_speed')::float) AS wind_speed FROM drone_telemetry WHERE $__timeFilter(time) AND payload->>'wind_speed' IS NOT NULL GROUP BY 1, 2 ORDER BY 1", "refId": "A" }],
+      "title": "Wind Speed (Fleet Avg)",
+      "type": "timeseries"
+    },
+    {
+      "datasource": { "type": "postgres", "uid": "timescaledb-ds" },
+      "fieldConfig": {
+        "defaults": { "color": { "mode": "palette-classic" }, "custom": { "lineWidth": 1, "fillOpacity": 5 }, "min": 0, "max": 1 },
+        "overrides": []
+      },
+      "gridPos": { "h": 8, "w": 12, "x": 12, "y": 52 },
+      "id": 19,
+      "options": { "legend": { "displayMode": "list", "placement": "bottom" }, "tooltip": { "mode": "multi", "sort": "none" } },
+      "targets": [
+        { "datasource": { "type": "postgres", "uid": "timescaledb-ds" }, "format": "time_series", "rawSql": "SELECT $__timeGroupAlias(time,'5s'), 'Motor 1' AS metric, AVG((motor_status->0->>'output')::float) FROM drone_telemetry WHERE $__timeFilter(time) AND drone_id IN ($drone_id) GROUP BY 1, 2 ORDER BY 1", "refId": "A" },
+        { "datasource": { "type": "postgres", "uid": "timescaledb-ds" }, "format": "time_series", "rawSql": "SELECT $__timeGroupAlias(time,'5s'), 'Motor 2' AS metric, AVG((motor_status->1->>'output')::float) FROM drone_telemetry WHERE $__timeFilter(time) AND drone_id IN ($drone_id) GROUP BY 1, 2 ORDER BY 1", "refId": "B" },
+        { "datasource": { "type": "postgres", "uid": "timescaledb-ds" }, "format": "time_series", "rawSql": "SELECT $__timeGroupAlias(time,'5s'), 'Motor 3' AS metric, AVG((motor_status->2->>'output')::float) FROM drone_telemetry WHERE $__timeFilter(time) AND drone_id IN ($drone_id) GROUP BY 1, 2 ORDER BY 1", "refId": "C" },
+        { "datasource": { "type": "postgres", "uid": "timescaledb-ds" }, "format": "time_series", "rawSql": "SELECT $__timeGroupAlias(time,'5s'), 'Motor 4' AS metric, AVG((motor_status->3->>'output')::float) FROM drone_telemetry WHERE $__timeFilter(time) AND drone_id IN ($drone_id) GROUP BY 1, 2 ORDER BY 1", "refId": "D" }
+      ],
+      "title": "Motor Outputs (Avg)",
+      "type": "timeseries"
+    }
+  ],
+  "refresh": "5s",
+  "schemaVersion": 39,
+  "tags": ["drone", "telemetry"],
+  "templating": {
+    "list": [
+      {
+        "datasource": { "type": "postgres", "uid": "timescaledb-ds" },
+        "definition": "SELECT DISTINCT drone_id FROM drone_telemetry ORDER BY drone_id",
+        "hide": 0,
+        "includeAll": true,
+        "multi": true,
+        "name": "drone_id",
+        "label": "Drone",
+        "options": [],
+        "query": "SELECT DISTINCT drone_id FROM drone_telemetry ORDER BY drone_id",
+        "refresh": 2,
+        "sort": 1,
+        "type": "query"
+      }
+    ]
+  },
+  "time": { "from": "now-5m", "to": "now" },
+  "timepicker": {},
+  "timezone": "browser",
+  "title": "Drone Telemetry",
+  "uid": "drone-telemetry-v1",
+  "version": 2
+}
+    {
+      "datasource": { "type": "postgres", "uid": "timescaledb-ds" },
+      "fieldConfig": {
+        "defaults": {
+          "color": { "mode": "thresholds" },
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [{ "color": "green", "value": null }]
+          }
+        },
+        "overrides": []
+      },
+      "gridPos": { "h": 4, "w": 4, "x": 0, "y": 0 },
+      "id": 1,
+      "options": {
+        "colorMode": "background",
+        "graphMode": "none",
+        "justifyMode": "center",
+        "orientation": "auto",
+        "reduceOptions": { "calcs": ["lastNotNull"], "fields": "", "values": false },
+        "textMode": "auto"
+      },
+      "targets": [
+        {
+          "datasource": { "type": "postgres", "uid": "timescaledb-ds" },
+          "format": "table",
+          "rawSql": "SELECT COUNT(DISTINCT drone_id) AS \"Active Drones\" FROM drone_telemetry WHERE $__timeFilter(time)",
+          "refId": "A"
+        }
+      ],
+      "title": "Active Drones",
+      "type": "stat"
+    },
+    {
+      "datasource": { "type": "postgres", "uid": "timescaledb-ds" },
+      "fieldConfig": {
+        "defaults": {
+          "color": { "mode": "thresholds" },
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              { "color": "red", "value": null },
+              { "color": "yellow", "value": 20 },
+              { "color": "green", "value": 50 }
+            ]
+          },
+          "unit": "percent",
+          "min": 0,
+          "max": 100
+        },
+        "overrides": []
+      },
+      "gridPos": { "h": 4, "w": 4, "x": 4, "y": 0 },
+      "id": 2,
+      "options": {
+        "colorMode": "background",
+        "graphMode": "area",
+        "justifyMode": "center",
+        "orientation": "auto",
+        "reduceOptions": { "calcs": ["lastNotNull"], "fields": "", "values": false },
+        "textMode": "auto"
+      },
+      "targets": [
+        {
+          "datasource": { "type": "postgres", "uid": "timescaledb-ds" },
+          "format": "table",
+          "rawSql": "SELECT AVG(battery_level) AS \"Avg Battery\" FROM drone_telemetry WHERE $__timeFilter(time)",
+          "refId": "A"
+        }
+      ],
+      "title": "Avg Battery",
+      "type": "stat"
+    },
+    {
+      "datasource": { "type": "postgres", "uid": "timescaledb-ds" },
+      "fieldConfig": {
+        "defaults": {
+          "color": { "mode": "thresholds" },
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [{ "color": "blue", "value": null }]
+          },
+          "unit": "lengthm"
+        },
+        "overrides": []
+      },
+      "gridPos": { "h": 4, "w": 4, "x": 8, "y": 0 },
+      "id": 3,
+      "options": {
+        "colorMode": "background",
+        "graphMode": "none",
+        "justifyMode": "center",
+        "orientation": "auto",
+        "reduceOptions": { "calcs": ["lastNotNull"], "fields": "", "values": false },
+        "textMode": "auto"
+      },
+      "targets": [
+        {
+          "datasource": { "type": "postgres", "uid": "timescaledb-ds" },
+          "format": "table",
+          "rawSql": "SELECT AVG(alt) AS \"Avg Altitude\" FROM drone_telemetry WHERE $__timeFilter(time)",
+          "refId": "A"
+        }
+      ],
+      "title": "Avg Altitude",
+      "type": "stat"
+    },
+    {
+      "datasource": { "type": "postgres", "uid": "timescaledb-ds" },
+      "fieldConfig": {
+        "defaults": {
+          "color": { "mode": "thresholds" },
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [{ "color": "purple", "value": null }]
+          },
+          "unit": "velocityms"
+        },
+        "overrides": []
+      },
+      "gridPos": { "h": 4, "w": 4, "x": 12, "y": 0 },
+      "id": 4,
+      "options": {
+        "colorMode": "background",
+        "graphMode": "none",
+        "justifyMode": "center",
+        "orientation": "auto",
+        "reduceOptions": { "calcs": ["lastNotNull"], "fields": "", "values": false },
+        "textMode": "auto"
+      },
+      "targets": [
+        {
+          "datasource": { "type": "postgres", "uid": "timescaledb-ds" },
+          "format": "table",
+          "rawSql": "SELECT AVG(speed) AS \"Avg Speed\" FROM drone_telemetry WHERE $__timeFilter(time)",
+          "refId": "A"
+        }
+      ],
+      "title": "Avg Speed",
+      "type": "stat"
+    },
+    {
+      "datasource": { "type": "postgres", "uid": "timescaledb-ds" },
+      "fieldConfig": {
+        "defaults": {
+          "color": { "mode": "palette-classic" },
+          "custom": { "lineWidth": 2 },
+          "unit": "percent",
+          "min": 0,
+          "max": 100
+        },
+        "overrides": []
+      },
+      "gridPos": { "h": 8, "w": 12, "x": 0, "y": 4 },
+      "id": 5,
+      "options": {
+        "legend": { "displayMode": "list", "placement": "bottom" },
+        "tooltip": { "mode": "multi", "sort": "none" }
+      },
+      "targets": [
+        {
+          "datasource": { "type": "postgres", "uid": "timescaledb-ds" },
+          "format": "time_series",
+          "rawSql": "SELECT $__timeGroupAlias(time,'5s'), drone_id AS metric, AVG(battery_level) AS battery_level FROM drone_telemetry WHERE $__timeFilter(time) GROUP BY 1, 2 ORDER BY 1",
+          "refId": "A"
+        }
+      ],
+      "title": "Battery Level",
+      "type": "timeseries"
+    },
+    {
+      "datasource": { "type": "postgres", "uid": "timescaledb-ds" },
+      "fieldConfig": {
+        "defaults": {
+          "color": { "mode": "palette-classic" },
+          "custom": { "lineWidth": 2 },
+          "unit": "lengthm"
+        },
+        "overrides": []
+      },
+      "gridPos": { "h": 8, "w": 12, "x": 12, "y": 4 },
+      "id": 6,
+      "options": {
+        "legend": { "displayMode": "list", "placement": "bottom" },
+        "tooltip": { "mode": "multi", "sort": "none" }
+      },
+      "targets": [
+        {
+          "datasource": { "type": "postgres", "uid": "timescaledb-ds" },
+          "format": "time_series",
+          "rawSql": "SELECT $__timeGroupAlias(time,'5s'), drone_id AS metric, AVG(alt) AS altitude FROM drone_telemetry WHERE $__timeFilter(time) GROUP BY 1, 2 ORDER BY 1",
+          "refId": "A"
+        }
+      ],
+      "title": "Altitude",
+      "type": "timeseries"
+    },
+    {
+      "datasource": { "type": "postgres", "uid": "timescaledb-ds" },
+      "fieldConfig": {
+        "defaults": {
+          "color": { "mode": "palette-classic" },
+          "custom": { "lineWidth": 2 },
+          "unit": "velocityms"
+        },
+        "overrides": []
+      },
+      "gridPos": { "h": 8, "w": 24, "x": 0, "y": 12 },
+      "id": 7,
+      "options": {
+        "legend": { "displayMode": "list", "placement": "bottom" },
+        "tooltip": { "mode": "multi", "sort": "none" }
+      },
+      "targets": [
+        {
+          "datasource": { "type": "postgres", "uid": "timescaledb-ds" },
+          "format": "time_series",
+          "rawSql": "SELECT $__timeGroupAlias(time,'5s'), drone_id AS metric, AVG(speed) AS speed FROM drone_telemetry WHERE $__timeFilter(time) GROUP BY 1, 2 ORDER BY 1",
+          "refId": "A"
+        }
+      ],
+      "title": "Speed",
+      "type": "timeseries"
+    }
+  ],
+  "refresh": "5s",
+  "schemaVersion": 38,
+  "tags": ["drone", "telemetry"],
+  "templating": { "list": [] },
+  "time": { "from": "now-5m", "to": "now" },
+  "timepicker": {},
+  "timezone": "browser",
+  "title": "Drone Telemetry",
+  "uid": "drone-telemetry-v1",
+  "version": 1
+}
