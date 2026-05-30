@@ -1,0 +1,240 @@
+{
+  "annotations": { "list": [] },
+  "editable": true,
+  "graphTooltip": 1,
+  "links": [],
+  "title": "Drone Map",
+  "uid": "drone-map",
+  "panels": [
+    {
+      "datasource": { "type": "postgres", "uid": "timescaledb-ds" },
+      "fieldConfig": {
+        "defaults": {
+          "color": { "mode": "thresholds" },
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              { "color": "red", "value": null },
+              { "color": "red", "value": 1 }
+            ]
+          }
+        },
+        "overrides": []
+      },
+      "gridPos": { "h": 4, "w": 4, "x": 0, "y": 0 },
+      "id": 10,
+      "options": {
+        "colorMode": "background",
+        "graphMode": "none",
+        "justifyMode": "center",
+        "orientation": "auto",
+        "reduceOptions": { "calcs": ["lastNotNull"], "fields": "", "values": false },
+        "textMode": "auto"
+      },
+      "targets": [
+        {
+          "datasource": { "type": "postgres", "uid": "timescaledb-ds" },
+          "format": "table",
+          "rawSql": "SELECT COUNT(*) AS \"Active Proximity Alerts\" FROM proximity_alerts WHERE time > now() - INTERVAL '30 seconds'",
+          "refId": "A"
+        }
+      ],
+      "title": "Active Proximity Alerts",
+      "type": "stat"
+    },
+    {
+      "datasource": { "type": "postgres", "uid": "timescaledb-ds" },
+      "fieldConfig": {
+        "defaults": {
+          "color": { "mode": "thresholds" },
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [{ "color": "green", "value": null }]
+          }
+        },
+        "overrides": []
+      },
+      "gridPos": { "h": 4, "w": 4, "x": 4, "y": 0 },
+      "id": 11,
+      "options": {
+        "colorMode": "background",
+        "graphMode": "none",
+        "justifyMode": "center",
+        "orientation": "auto",
+        "reduceOptions": { "calcs": ["lastNotNull"], "fields": "", "values": false },
+        "textMode": "auto"
+      },
+      "targets": [
+        {
+          "datasource": { "type": "postgres", "uid": "timescaledb-ds" },
+          "format": "table",
+          "rawSql": "SELECT COUNT(*) AS \"Drones on Map\" FROM drone_latest_positions WHERE updated_at > now() - INTERVAL '10 seconds'",
+          "refId": "A"
+        }
+      ],
+      "title": "Drones on Map",
+      "type": "stat"
+    },
+    {
+      "datasource": { "type": "postgres", "uid": "timescaledb-ds" },
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "fixed",
+            "fixedColor": "blue"
+          },
+          "mappings": [],
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [{ "color": "green", "value": null }]
+          },
+          "custom": {
+            "hideFrom": { "legend": false, "tooltip": false, "viz": false }
+          }
+        },
+        "overrides": [
+          {
+            "matcher": { "id": "byName", "options": "status" },
+            "properties": [
+              {
+                "id": "mappings",
+                "value": [
+                  { "type": "value", "options": { "HEALTHY":   { "color": "green",  "index": 0 } } },
+                  { "type": "value", "options": { "WARNING":   { "color": "orange", "index": 1 } } },
+                  { "type": "value", "options": { "CRITICAL":  { "color": "red",    "index": 2 } } }
+                ]
+              },
+              { "id": "color", "value": { "mode": "fixed", "fixedColor": "green" } }
+            ]
+          }
+        ]
+      },
+      "gridPos": { "h": 20, "w": 24, "x": 0, "y": 4 },
+      "id": 20,
+      "options": {
+        "view": {
+          "id": "coords",
+          "lat": 40.7128,
+          "lon": -74.0060,
+          "zoom": 13
+        },
+        "controls": {
+          "mouseWheelZoom": true,
+          "showAttribution": true,
+          "showDebug": false,
+          "showMeasure": false,
+          "showScale": false,
+          "showZoom": true
+        },
+        "layers": [
+          {
+            "type": "basemap",
+            "name": "Basemap",
+            "config": {
+              "type": "osm-standard"
+            }
+          },
+          {
+            "type": "markers",
+            "name": "Drones",
+            "config": {
+              "style": {
+                "size": {
+                  "fixed": 8,
+                  "min": 2,
+                  "max": 15
+                },
+                "color": {
+                  "field": "status",
+                  "fixed": "blue"
+                },
+                "opacity": 0.9,
+                "symbol": {
+                  "mode": "fixed",
+                  "fixed": "img/icons/marker/circle.svg"
+                },
+                "textConfig": {
+                  "fontSize": 12,
+                  "offsetX": 0,
+                  "offsetY": 0,
+                  "textAlign": "center",
+                  "textBaseline": "middle"
+                }
+              },
+              "showLegend": true
+            },
+            "location": {
+              "mode": "coords",
+              "latitude": "lat",
+              "longitude": "lon"
+            },
+            "tooltip": true
+          }
+        ],
+        "tooltip": { "mode": "details" }
+      },
+      "targets": [
+        {
+          "datasource": { "type": "postgres", "uid": "timescaledb-ds" },
+          "format": "table",
+          "rawSql": "SELECT\n  p.drone_id,\n  ST_Y(p.position::GEOMETRY) AS lat,\n  ST_X(p.position::GEOMETRY) AS lon,\n  p.alt,\n  p.speed,\n  COALESCE(t.payload->>'status', 'UNKNOWN') AS status,\n  COALESCE(t.payload->>'flight_mode', 'UNKNOWN') AS flight_mode,\n  round(p.updated_at::text::numeric, 0) AS last_seen\nFROM drone_latest_positions p\nLEFT JOIN LATERAL (\n  SELECT payload FROM drone_telemetry\n  WHERE drone_id = p.drone_id\n  ORDER BY time DESC\n  LIMIT 1\n) t ON true\nWHERE p.updated_at > now() - INTERVAL '10 seconds'",
+          "refId": "A"
+        }
+      ],
+      "title": "Live Drone Positions",
+      "type": "geomap"
+    },
+    {
+      "datasource": { "type": "postgres", "uid": "timescaledb-ds" },
+      "fieldConfig": {
+        "defaults": { "custom": { "align": "auto", "displayMode": "auto" } },
+        "overrides": [
+          {
+            "matcher": { "id": "byName", "options": "distance_m" },
+            "properties": [
+              { "id": "displayName", "value": "Distance (m)" },
+              {
+                "id": "custom.displayMode",
+                "value": "color-background"
+              },
+              {
+                "id": "thresholds",
+                "value": {
+                  "mode": "absolute",
+                  "steps": [
+                    { "color": "red",    "value": null },
+                    { "color": "orange", "value": 30 },
+                    { "color": "yellow", "value": 40 }
+                  ]
+                }
+              }
+            ]
+          }
+        ]
+      },
+      "gridPos": { "h": 10, "w": 24, "x": 0, "y": 24 },
+      "id": 30,
+      "options": {
+        "sortBy": [{ "displayName": "time", "desc": true }],
+        "footer": { "show": false }
+      },
+      "targets": [
+        {
+          "datasource": { "type": "postgres", "uid": "timescaledb-ds" },
+          "format": "table",
+          "rawSql": "SELECT\n  time AT TIME ZONE 'UTC' AS time,\n  drone_id_a,\n  drone_id_b,\n  round(distance_m::numeric, 1) AS distance_m,\n  threshold_m,\n  round(lat_a::numeric, 5) AS lat_a,\n  round(lon_a::numeric, 5) AS lon_a,\n  round(lat_b::numeric, 5) AS lat_b,\n  round(lon_b::numeric, 5) AS lon_b\nFROM proximity_alerts\nWHERE $__timeFilter(time)\nORDER BY time DESC\nLIMIT 100",
+          "refId": "A"
+        }
+      ],
+      "title": "Recent Proximity Alerts",
+      "type": "table"
+    }
+  ],
+  "refresh": "5s",
+  "schemaVersion": 39,
+  "tags": ["drones", "map", "proximity"],
+  "time": { "from": "now-5m", "to": "now" },
+  "timepicker": {},
+  "timezone": "browser",
+  "version": 1
+}

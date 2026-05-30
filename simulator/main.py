@@ -29,6 +29,11 @@ if RUN_MODE not in ("dev", "scale"):
 
 STATS_INTERVAL = float(os.environ.get("STATS_INTERVAL", "30"))
 
+# --- fault injection (off by default) ---
+# Set FAULT_RATE to a value in (0, 1] to inject synthetic faults into the stream.
+# E.g. FAULT_RATE=0.05 injects a fault into ~5% of records.
+FAULT_RATE = float(os.environ.get("FAULT_RATE", "0.0"))
+
 
 async def kafka_writer(queue: asyncio.Queue, producer: Producer) -> None:
     loop = asyncio.get_running_loop()
@@ -81,10 +86,16 @@ async def main() -> None:
     stats_queue: asyncio.Queue = asyncio.Queue(maxsize=10_000)
     shared_queue: asyncio.Queue = asyncio.Queue(maxsize=10_000)
 
+    from fault_injector import FaultInjector
+    injector = FaultInjector(fault_rate=FAULT_RATE)
+    if FAULT_RATE > 0.0:
+        log.warning("Fault injection ENABLED at %.1f%% rate", FAULT_RATE * 100)
+
     async def relay() -> None:
         """Fan each record out to the Kafka writer and the stats logger."""
         while True:
             record = await shared_queue.get()
+            record = injector.maybe_inject(record)
             await kafka_queue.put(record)
             try:
                 stats_queue.put_nowait(record)
