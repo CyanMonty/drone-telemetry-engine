@@ -25,7 +25,7 @@ db_stub.upsert_position = MagicMock()
 db_stub.find_nearby = MagicMock(return_value=[])
 db_stub.was_recently_alerted = MagicMock(return_value=False)
 db_stub.insert_alert = MagicMock()
-sys.modules.setdefault("db", db_stub)
+sys.modules["db"] = db_stub
 
 from proximity_detector import check_proximity, haversine_distance  # noqa: E402
 
