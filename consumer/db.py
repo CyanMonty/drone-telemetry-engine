@@ -5,6 +5,8 @@ import psycopg2
 
 log = logging.getLogger(__name__)
 
+_ENABLE_POSTGIS = "CREATE EXTENSION IF NOT EXISTS postgis;"
+
 _CREATE_TABLE = """
 CREATE TABLE IF NOT EXISTS drone_telemetry (
     time          TIMESTAMPTZ      NOT NULL,
@@ -67,6 +69,7 @@ VALUES
 
 def init_db(conn: psycopg2.extensions.connection) -> None:
     with conn.cursor() as cur:
+        cur.execute(_ENABLE_POSTGIS)
         cur.execute(_CREATE_TABLE)
         cur.execute(_CREATE_HYPERTABLE)
         cur.execute(_CREATE_INDEX)

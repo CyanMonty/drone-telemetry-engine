@@ -3,11 +3,20 @@ Unit tests for consumer/db.py.
 
 Uses unittest.mock to avoid a real database connection.
 """
+import importlib.util
 import json
+from pathlib import Path
 from unittest.mock import MagicMock, call, patch
 import pytest
 
-from db import init_db, insert_telemetry
+_DB_PATH = Path(__file__).resolve().parents[2] / "consumer" / "db.py"
+_DB_SPEC = importlib.util.spec_from_file_location("consumer_db", _DB_PATH)
+consumer_db = importlib.util.module_from_spec(_DB_SPEC)
+assert _DB_SPEC.loader is not None
+_DB_SPEC.loader.exec_module(consumer_db)
+
+init_db = consumer_db.init_db
+insert_telemetry = consumer_db.insert_telemetry
 
 
 def _make_conn():

@@ -1,4 +1,26 @@
-Behavioral guidelines to reduce common LLM coding mistakes. Merge with project-specific instructions as needed.
+# drone-telemetry-engine — Copilot instructions
+
+## Project overview
+
+Real-time drone swarm telemetry pipeline:
+- **simulator** — produces synthetic or PX4-bridged telemetry to Kafka
+- **consumer** — persists telemetry to TimescaleDB; anomaly detection + DLQ
+- **proximity-consumer** — detects drone pairs within a threshold distance, publishes alerts to Kafka
+- **grafana** — pre-provisioned dashboards (drone-telemetry, drone-map, streaming-test-metrics)
+- **tests/** — unit tests (no external deps) and integration tests (Testcontainers)
+
+## Key conventions
+
+- Each service runs as a standalone Python module from its own directory (no package prefix).
+- `sys.path` patching in `tests/conftest.py` makes simulator, consumer, and proximity-consumer importable during tests.
+- DB schema is created at startup via `init_db()` in each service's `db.py`; no migration tool.
+- TimescaleDB image must be `timescale/timescaledb-ha` (bundles PostGIS for proximity queries). Switching images requires `docker compose down -v`.
+- Proximity detection uses PostGIS `ST_DWithin` (geography type) for accurate spherical distance.
+- Fault injection is off by default (`FAULT_RATE=0.0`). Enable in `.env` or environment.
+- Tests are marked `unit` or `integration`. Integration tests require Docker (Testcontainers spins up Kafka/Postgres).
+- Run unit tests: `pytest -m unit`. Run all: `pytest`. Reports go to `reports/test-report.html`.
+
+## Behavioral guidelines to reduce common LLM coding mistakes.
 
 **Tradeoff:** These guidelines bias toward caution over speed. For trivial tasks, use judgment.
 
