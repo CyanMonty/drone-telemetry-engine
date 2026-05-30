@@ -1,3 +1,119 @@
+version: "3.9"
+
+# ---------------------------------------------------------------------------
+# Drone Swarm Telemetry Engine
+#
+# Services:
+#   zookeeper  — Kafka coordination
+#   kafka      — Message broker
+#   simulator  — PX4 SITL swarm: produces to px4.telemetry.raw
+#   parser     — Enriches raw telemetry → px4.telemetry.parsed
+#   dashboard  — Streamlit real-time UI (http://localhost:8501)
+# ---------------------------------------------------------------------------
+
+networks:
+  telemetry-net:
+    driver: bridge
+
+services:
+
+  # --------------------------------------------------------------------------
+  zookeeper:
+    image: confluentinc/cp-zookeeper:7.6.1
+    hostname: zookeeper
+    networks: [telemetry-net]
+    environment:
+      ZOOKEEPER_CLIENT_PORT: 2181
+      ZOOKEEPER_TICK_TIME: 2000
+    healthcheck:
+      test: echo ruok | nc localhost 2181 | grep imok
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # --------------------------------------------------------------------------
+  kafka:
+    image: confluentinc/cp-kafka:7.6.1
+    hostname: kafka
+    networks: [telemetry-net]
+    depends_on:
+      zookeeper:
+        condition: service_healthy
+    ports:
+      - "9092:9092"   # exposed to host for local debugging
+    environment:
+      KAFKA_BROKER_ID: 1
+      KAFKA_ZOOKEEPER_CONNECT: "zookeeper:2181"
+      # Two listeners: internal (kafka:29092) and host-accessible (localhost:9092)
+      KAFKA_ADVERTISED_LISTENERS: "PLAINTEXT://kafka:29092,PLAINTEXT_HOST://localhost:9092"
+      KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: "PLAINTEXT:PLAINTEXT,PLAINTEXT_HOST:PLAINTEXT"
+      KAFKA_INTER_BROKER_LISTENER_NAME: PLAINTEXT
+      KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: 1
+      KAFKA_AUTO_CREATE_TOPICS_ENABLE: "true"
+      KAFKA_LOG_RETENTION_HOURS: 1
+    healthcheck:
+      test: kafka-topics --bootstrap-server kafka:29092 --list
+      interval: 15s
+      timeout: 10s
+      retries: 10
+
+  # --------------------------------------------------------------------------
+  simulator:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    hostname: simulator
+    networks: [telemetry-net]
+    depends_on:
+      kafka:
+        condition: service_healthy
+    command: python -m sim.swarm_simulator
+    environment:
+      KAFKA_BOOTSTRAP_SERVERS: kafka:29092
+      NUM_DRONES: "5"
+      SIM_UPDATE_HZ: "2.0"
+      HOME_LAT: "37.8044"
+      HOME_LON: "-122.4679"
+      HOME_ALT: "10.0"
+    restart: on-failure
+
+  # --------------------------------------------------------------------------
+  parser:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    hostname: parser
+    networks: [telemetry-net]
+    depends_on:
+      kafka:
+        condition: service_healthy
+    command: python -m parser.telemetry_parser
+    environment:
+      KAFKA_BOOTSTRAP_SERVERS: kafka:29092
+    restart: on-failure
+
+  # --------------------------------------------------------------------------
+  dashboard:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    hostname: dashboard
+    networks: [telemetry-net]
+    depends_on:
+      kafka:
+        condition: service_healthy
+    ports:
+      - "8501:8501"
+    command: >
+      streamlit run dashboard/app.py
+        --server.port=8501
+        --server.address=0.0.0.0
+        --server.headless=true
+        --browser.gatherUsageStats=false
+    environment:
+      KAFKA_BOOTSTRAP_SERVERS: kafka:29092
+    restart: on-failure
+
 services:
   kafka:
     image: apache/kafka:3.9.0

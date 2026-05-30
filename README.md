@@ -1,227 +1,175 @@
 # drone-telemetry-engine
 
-A real-time drone swarm telemetry pipeline. Drones publish position and health data to Kafka; consumers persist to TimescaleDB; Grafana visualises the fleet. A dedicated proximity consumer detects and alerts when drones fly too close together.
+> **Drone swarm simulation using PX4 SITL streamed to Kafka and parsed into a real-time telemetry dashboard.**
+
+---
 
 ## Architecture
 
 ```
-Simulator ──► Kafka (drone-telemetry) ──► Consumer ──────────────► TimescaleDB
-                                     └──► Proximity Consumer ──► TimescaleDB
-                                                              └──► Kafka (proximity-alerts)
-                                                                        │
-TimescaleDB ◄──────────────────────────────────────────────────────────┘
-     │
-Grafana dashboards
+┌─────────────────────────────────────────────────────────────────────────┐
+│                        Docker Compose Stack                             │
+│                                                                         │
+│   ┌──────────────┐   px4.telemetry.raw   ┌──────────────────────────┐  │
+│   │   Simulator  │ ────────────────────► │       Kafka Broker       │  │
+│   │  (swarm of N │                       │   (+ Zookeeper)          │  │
+│   │    drones)   │                       │                          │  │
+│   └──────────────┘                       └────────────┬─────────────┘  │
+│                                                        │               │
+│   ┌──────────────┐                                     │               │
+│   │    Parser    │ ◄───── px4.telemetry.raw ───────────┘               │
+│   │  (enrichment)│ ──────────── px4.telemetry.parsed ──────────────►   │
+│   └──────────────┘                                                     │
+│                                          ┌─────────────────────────┐   │
+│                                          │  Streamlit Dashboard    │   │
+│                                          │  http://localhost:8501  │   │
+│                                          └─────────────────────────┘   │
+└─────────────────────────────────────────────────────────────────────────┘
 ```
+
+### Components
 
 | Service | Description |
 |---|---|
-| `simulator` | Generates synthetic drone telemetry (scale mode) or bridges real PX4 SITL drones (dev mode) |
-| `consumer` | Persists telemetry to TimescaleDB; runs anomaly detection and DLQ validation |
-| `proximity-consumer` | Detects when any two drones are within a configurable distance and publishes alerts |
-| `kafka` | KRaft-mode Apache Kafka broker (no ZooKeeper) |
-| `kafka-ui` | Web UI for inspecting topics and messages |
-| `timescaledb` | TimescaleDB (PostgreSQL + TimescaleDB + PostGIS) for time-series storage |
-| `grafana` | Pre-provisioned dashboards for fleet telemetry and proximity alerts |
+| **Simulator** (`sim/swarm_simulator.py`) | Spawns *N* virtual PX4 drones, updates physics at configurable Hz, produces MAVLink-style JSON telemetry to `px4.telemetry.raw` |
+| **Parser** (`parser/telemetry_parser.py`) | Kafka consumer that enriches raw messages (ground speed, battery alert level, GPS health) and republishes to `px4.telemetry.parsed` |
+| **Dashboard** (`dashboard/app.py`) | Streamlit app with live map, KPI bar, per-drone metric cards, and time-series charts — auto-refreshes every N seconds |
+| **Kafka + Zookeeper** | Message broker (Confluent Platform images) |
+
+### Telemetry message format
+
+Each drone publishes a JSON message per tick:
+
+```json
+{
+  "drone_id": "drone_001",
+  "timestamp": 1735000000.0,
+  "sequence": 42,
+  "heartbeat": { "armed": true, "flight_mode": "AUTO.MISSION", "system_status": "ACTIVE" },
+  "position":  { "lat": 37.8044, "lon": -122.4679, "alt_msl": 120.3, "relative_alt": 110.3,
+                  "vx": -8.1, "vy": 5.3, "vz": 0.1, "heading_deg": 147.2 },
+  "attitude":  { "roll_deg": 5.2, "pitch_deg": -0.3, "yaw_deg": 147.2,
+                  "rollspeed": 0.0, "pitchspeed": 0.0, "yawspeed": 0.08 },
+  "battery":   { "voltage_v": 15.6, "current_a": 2.1, "remaining_pct": 87, "consumed_mah": 1300.0 },
+  "gps":       { "fix_type": 3, "satellites_visible": 13, "eph": 0.8, "epv": 1.2 }
+}
+```
+
+The parser adds a `computed` block:
+
+```json
+{
+  "parsed_at": 1735000000.1,
+  "computed": {
+    "ground_speed_ms": 9.7, "ground_speed_kmh": 34.9, "total_speed_ms": 9.7,
+    "battery_alert": "OK",   "gps_status": "3D_FIX",  "gps_healthy": true
+  }
+}
+```
 
 ---
 
-## Quick start
+## Quick Start
 
 ### Prerequisites
 
-- Docker and Docker Compose
-- Ports `3000`, `5432`, `8080`, `9094` free on the host
+* [Docker](https://docs.docker.com/get-docker/) ≥ 24
+* [Docker Compose](https://docs.docker.com/compose/install/) v2
 
-### 1. Start the stack
+### 1 — Clone and launch the full stack
 
 ```bash
+git clone https://github.com/CyanMonty/drone-telemetry-engine.git
+cd drone-telemetry-engine
 docker compose up --build
 ```
 
-This starts Kafka, TimescaleDB, Grafana, the simulator (100 synthetic drones), the telemetry consumer, and the proximity consumer.
+Open **http://localhost:8501** to view the live dashboard.
 
-### 2. Open Grafana
-
-Navigate to [http://localhost:3000](http://localhost:3000).
-
-Default credentials: `admin` / `admin`
-
-Three dashboards are pre-provisioned:
-
-| Dashboard | What it shows |
-|---|---|
-| **Drone Telemetry** | Per-drone altitude, speed, battery, heading over time |
-| **Drone Map** | Live 2-D map of the fleet using lat/lon from TimescaleDB |
-| **Streaming Test Metrics** | Throughput and latency data from pipeline load tests |
-
-### 3. Inspect Kafka topics
-
-Kafka UI is at [http://localhost:8080](http://localhost:8080).
-
-Topics created automatically:
-- `drone-telemetry` — raw telemetry from the simulator
-- `proximity-alerts` — alert records when drones are within the threshold distance
-
----
-
-## Configuration
-
-All settings are passed as environment variables. The defaults in `docker-compose.yml` work out of the box.
-
-### Simulator
-
-| Variable | Default | Description |
-|---|---|---|
-| `RUN_MODE` | `scale` | `scale` for synthetic drones, `dev` for PX4 SITL bridge |
-| `NUM_DRONES` | `100` | Number of synthetic drones (scale mode only) |
-| `TELEMETRY_RATE_HZ` | `2` | Telemetry publish rate per drone |
-| `FAULT_RATE` | `0.0` | Fraction of records to corrupt (0.0 = disabled, 0.05 = 5%) |
-| `KAFKA_TOPIC` | `drone-telemetry` | Target Kafka topic |
-| `PX4_ADDRESSES` | `udp://px4-swarm:14540,...` | MAVSDK addresses for PX4 instances (dev mode) |
-
-### Consumer
-
-| Variable | Default | Description |
-|---|---|---|
-| `KAFKA_GROUP_ID` | `telemetry-consumer` | Kafka consumer group ID |
-| `KAFKA_TOPIC` | `drone-telemetry` | Topic to consume |
-
-### Proximity consumer
-
-| Variable | Default | Description |
-|---|---|---|
-| `PROXIMITY_THRESHOLD_M` | `50.0` | Alert distance in metres |
-| `PROXIMITY_COOLDOWN_S` | `10.0` | Minimum seconds between repeated alerts for the same pair |
-| `KAFKA_ALERTS_TOPIC` | `proximity-alerts` | Topic where alerts are published |
-| `KAFKA_GROUP_ID` | `proximity-consumer` | Kafka consumer group ID |
-
-### Database / Grafana
-
-| Variable | Default | Description |
-|---|---|---|
-| `POSTGRES_DB` | `telemetry` | Database name |
-| `POSTGRES_USER` | `telemetry` | Database user |
-| `POSTGRES_PASSWORD` | `telemetry` | Database password |
-| `GRAFANA_USER` | `admin` | Grafana admin username |
-| `GRAFANA_PASSWORD` | `admin` | Grafana admin password |
-
-Override any variable by creating a `.env` file in the project root, e.g.:
-
-```env
-NUM_DRONES=50
-FAULT_RATE=0.05
-PROXIMITY_THRESHOLD_M=30.0
-POSTGRES_PASSWORD=mysecretpassword
-```
-
----
-
-## Dev mode (real PX4 SITL drones)
-
-Dev mode connects the simulator to PX4 Software-In-The-Loop instances instead of generating synthetic data.
-
-```bash
-docker compose --profile dev up --build
-```
-
-The `px4-swarm` service starts `NUM_DRONES` PX4 instances. Each instance exposes a MAVSDK UDP port starting at `14540`. The simulator bridges each instance to Kafka.
-
-| Variable | Default | Description |
-|---|---|---|
-| `PX4_NUM_DRONES` | `3` | Number of PX4 SITL instances |
-| `PX4_VEHICLE` | `gz_x500` | Vehicle model |
-| `PX4_WORLD` | `default` | Gazebo world |
-| `PX4_DRONE_SPACING` | `2` | Spacing between spawned vehicles (metres) |
-
----
-
-## Fault injection
-
-Set `FAULT_RATE` to a value between `0.0` and `1.0` to have the simulator corrupt a fraction of outgoing records. Faults injected:
-
-| Fault type | What happens | Caught by |
-|---|---|---|
-| `CORRUPT_PAYLOAD` | Removes a required field | DLQ validator |
-| `ANOMALOUS_BATTERY` | Battery set near zero | Anomaly detector |
-| `ANOMALOUS_ALTITUDE` | Altitude set above ceiling | Anomaly detector |
-| `ANOMALOUS_SPEED` | Speed set above max | Anomaly detector |
-| `STALE_TIMESTAMP` | Timestamp set 2 hours in the past | Anomaly detector |
-| `DUPLICATE` | Record returned unchanged | (simulates re-delivery) |
-
----
-
-## Anomaly detection thresholds
-
-Configured as constants in `consumer/anomaly_detector.py`:
-
-| Check | Threshold |
-|---|---|
-| Low battery | < 15% |
-| Altitude too high | > 150 m |
-| Altitude too low | < 10 m |
-| Speed too high | > 25 m/s |
-
----
-
-## Running tests
-
-Install test dependencies:
-
-```bash
-pip install -r tests/requirements-test.txt
-```
-
-Run unit tests (no external dependencies):
-
-```bash
-pytest -m unit
-```
-
-Run all tests including integration tests (requires Docker for Testcontainers):
-
-```bash
-pytest
-```
-
-Test reports are written to `reports/test-report.html`.
-
----
-
-## Database schema
-
-Two hypertables are created automatically on first run:
-
-### `drone_telemetry`
-
-| Column | Type | Description |
-|---|---|---|
-| `time` | `TIMESTAMPTZ` | Partition key |
-| `drone_id` | `TEXT` | Unique drone identifier |
-| `lat`, `lon` | `DOUBLE PRECISION` | WGS-84 position |
-| `alt` | `DOUBLE PRECISION` | Altitude in metres |
-| `speed` | `DOUBLE PRECISION` | Speed in m/s |
-| `heading` | `DOUBLE PRECISION` | Heading in degrees |
-| `battery_level` | `DOUBLE PRECISION` | Battery percentage |
-| `motor_status` | `JSONB` | Per-motor output values |
-| `payload` | `JSONB` | Raw telemetry payload |
-
-### `proximity_alerts`
-
-Stores every alert emitted by the proximity consumer, keyed on the drone pair and timestamp.
-
----
-
-## Stopping the stack
+### 2 — Stop
 
 ```bash
 docker compose down
 ```
 
-To also remove persisted data volumes:
+---
+
+## Local Development (without Docker)
+
+Requires Python 3.11+ and a Kafka broker on `localhost:9092`.
 
 ```bash
-docker compose down -v
+# Install dependencies
+pip install -r requirements.txt
+
+# Terminal 1 — simulator
+python -m sim.swarm_simulator
+
+# Terminal 2 — parser
+python -m parser.telemetry_parser
+
+# Terminal 3 — dashboard
+streamlit run dashboard/app.py
 ```
 
-> **Note:** If you switch from `timescale/timescaledb` to `timescale/timescaledb-ha` (which bundles PostGIS), run `docker compose down -v` first to drop the old volume.
+> **Demo mode**: if Kafka is unreachable the dashboard automatically switches to
+> synthetic demo data so you can explore the UI without infrastructure.
+
+---
+
+## Configuration
+
+All settings are controlled via environment variables:
+
+| Variable | Default | Description |
+|---|---|---|
+| `KAFKA_BOOTSTRAP_SERVERS` | `localhost:9092` | Kafka broker address |
+| `RAW_TOPIC` | `px4.telemetry.raw` | Topic for raw simulator output |
+| `PARSED_TOPIC` | `px4.telemetry.parsed` | Topic for enriched telemetry |
+| `NUM_DRONES` | `5` | Number of simulated drones |
+| `SIM_UPDATE_HZ` | `2.0` | Telemetry publish rate (Hz) |
+| `HOME_LAT` / `HOME_LON` | `37.8044` / `-122.4679` | Swarm home coordinates (SF) |
+| `HOME_ALT` | `10.0` | Home altitude AMSL (m) |
+| `DASHBOARD_REFRESH_MS` | `2000` | Dashboard auto-refresh interval |
+| `MAX_HISTORY_POINTS` | `120` | Chart history depth per drone |
+
+---
+
+## Running Tests
+
+```bash
+pip install -r requirements.txt
+pytest tests/ -v
+```
+
+Tests cover drone physics (`tests/test_drone.py`) and the enrichment logic
+(`tests/test_telemetry_parser.py`). No Kafka broker is required to run tests.
+
+---
+
+## Project Layout
+
+```
+drone-telemetry-engine/
+├── config.py                   # Centralised configuration
+├── sim/
+│   ├── drone.py                # Drone physics model
+│   └── swarm_simulator.py      # Swarm orchestrator + Kafka producer
+├── parser/
+│   └── telemetry_parser.py     # Kafka consumer / enrichment / re-publisher
+├── dashboard/
+│   └── app.py                  # Streamlit real-time dashboard
+├── tests/
+│   ├── test_drone.py
+│   └── test_telemetry_parser.py
+├── docker-compose.yml
+├── Dockerfile
+├── Makefile
+└── requirements.txt
+```
+
+---
+
+## License
+
+MIT — see [LICENSE](LICENSE).
